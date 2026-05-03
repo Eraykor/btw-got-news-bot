@@ -2,7 +2,7 @@ const {
     ContextMenuCommandBuilder,
     ApplicationCommandType
 } = require("discord.js");
-const { translateText } = require("../services/translation-service");
+const { translateText } = require("../services/translation-services");
 const { getUserTranslationLanguage } = require("../services/config-services");
 
 function truncateText(value, maxLength) {
