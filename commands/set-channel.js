@@ -42,6 +42,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
     async execute(interaction) {
+        await interaction.deferReply({ flags: 64 });
+
         const channelType = interaction.options.getString("type");
         const selectedChannel = interaction.options.getChannel("channel");
         const guildId = interaction.guildId;
@@ -70,9 +72,8 @@ module.exports = {
 
         writeConfig(config);
 
-        await interaction.reply({
-            content: `✅ Channel \`${channelType}\` has been set to ${selectedChannel}.`,
-            flags: 64
+        await interaction.editReply({
+            content: `✅ Channel \`${channelType}\` has been set to ${selectedChannel}.`
         });
     }
 };
