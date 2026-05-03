@@ -22,6 +22,7 @@
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "playwright": "^1.59.1"
+    "playwright": "^1.59.1",
+    "translate-google": "^1.5.0"
   }
 }
