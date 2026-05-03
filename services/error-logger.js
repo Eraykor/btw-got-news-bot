@@ -1,39 +1,40 @@
 const { getGuildConfig } = require("./config-services");
 
-async function sendErrorLog(client, guildId, title, error) {
+async function sendErrorLog(client, guildId, context, error) {
     try {
-        const guildConfig = getGuildConfig(guildId);
-
-        if (!guildConfig.errorLogChannelId) {
+        if (!guildId) {
             return;
         }
 
-        const errorChannel = await client.channels.fetch(guildConfig.errorLogChannelId);
+        const guildConfig = await getGuildConfig(guildId);
 
-        if (!errorChannel) {
+        if (!guildConfig?.error_log_channel_id) {
             return;
         }
 
-        const errorMessage = error instanceof Error
-            ? error.stack || error.message
-            : String(error);
+        const targetChannel = await client.channels.fetch(guildConfig.error_log_channel_id);
 
-        const truncatedErrorMessage = errorMessage.length > 1800
-            ? `${errorMessage.slice(0, 1797)}...`
-            : errorMessage;
+        if (!targetChannel) {
+            return;
+        }
 
-        await errorChannel.send({
+        const errorStack = error?.stack || String(error);
+        const truncatedErrorStack = errorStack.length > 1800
+            ? `${errorStack.slice(0, 1797)}...`
+            : errorStack;
+
+        await targetChannel.send({
             content: [
                 "❌ **Bot error detected**",
-                `**Context:** ${title}`,
+                `**Context:** ${context}`,
                 `**Time:** ${new Date().toISOString()}`,
                 "```",
-                truncatedErrorMessage,
+                truncatedErrorStack,
                 "```"
             ].join("\n")
         });
-    } catch (loggingError) {
-        console.error("Failed to send error log to Discord channel:", loggingError);
+    } catch (sendError) {
+        console.error("Failed to send error log to Discord channel:", sendError);
     }
 }
 

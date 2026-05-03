@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
-const { postNewGameNewsForGuild } = require("../services/game-news-poster");
+const { postNewGameNewsForGuild } = require("../services/game-news-poster.js");
 
 module.exports = {
     data: new SlashCommandBuilder()

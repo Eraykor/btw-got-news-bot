@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { readConfig, hasPostedGameCode, addPostedGameCode } = require("./config-services");
+const { getGuildConfig, hasPostedGameCode, addPostedGameCode } = require("./config-services");
 const { fetchLatestGameCodes } = require("./game-code-fetcher-playwright");
 
 const fallbackThumbnailUrl = process.env.GAME_CODE_THUMBNAIL_URL || null;
@@ -32,24 +32,16 @@ function buildGameCodeEmbed(gameCode) {
 }
 
 async function postNewGameCodesForGuild(client, guildId) {
-    const config = readConfig();
-    const guildConfig = config.guilds?.[guildId];
+    const guildConfig = await getGuildConfig(guildId);
 
-    if (!guildConfig) {
-        return {
-            postedCount: 0,
-            reason: "Guild is not configured"
-        };
-    }
-
-    if (!guildConfig.gameCodeChannelId) {
+    if (!guildConfig || !guildConfig.game_code_channel_id) {
         return {
             postedCount: 0,
             reason: "No game-code channel configured"
         };
     }
 
-    const targetChannel = await client.channels.fetch(guildConfig.gameCodeChannelId);
+    const targetChannel = await client.channels.fetch(guildConfig.game_code_channel_id);
 
     if (!targetChannel) {
         return {
@@ -67,9 +59,15 @@ async function postNewGameCodesForGuild(client, guildId) {
         };
     }
 
-    const newCodeItems = codeItems.filter((codeItem) => {
-        return !hasPostedGameCode(guildId, codeItem.code);
-    });
+    const newCodeItems = [];
+
+    for (const codeItem of codeItems) {
+        const alreadyPosted = await hasPostedGameCode(guildId, codeItem.code);
+
+        if (!alreadyPosted) {
+            newCodeItems.push(codeItem);
+        }
+    }
 
     if (newCodeItems.length === 0) {
         return {
@@ -87,7 +85,7 @@ async function postNewGameCodesForGuild(client, guildId) {
             embeds: [embed]
         });
 
-        addPostedGameCode(guildId, codeItem.code);
+        await addPostedGameCode(guildId, codeItem.code);
         postedCount++;
     }
 

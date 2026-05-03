@@ -5,12 +5,16 @@ const setChannelCommand = require("./commands/set-channel");
 const postLatestNewsCommand = require("./commands/post-latest-news");
 const postLatestEventsCommand = require("./commands/post-latest-events");
 const postLatestCodesCommand = require("./commands/post-latest-codes");
+const translateMessageCommand = require("./commands/translate-message");
+const setTranslationLanguageCommand = require("./commands/set-translation-language");
 
 const commands = [
     setChannelCommand.data.toJSON(),
     postLatestNewsCommand.data.toJSON(),
     postLatestEventsCommand.data.toJSON(),
-    postLatestCodesCommand.data.toJSON()
+    postLatestCodesCommand.data.toJSON(),
+    translateMessageCommand.data.toJSON(),
+    setTranslationLanguageCommand.data.toJSON()
 ];
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);

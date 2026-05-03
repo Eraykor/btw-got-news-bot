@@ -63,7 +63,7 @@ async function postNewContentForGuild(client, guildId, options) {
         noNewContentReason
     } = options;
 
-    const guildConfig = getGuildConfig(guildId);
+    const guildConfig = await getGuildConfig(guildId);
 
     if (!guildConfig[channelIdKey]) {
         return {
@@ -90,9 +90,15 @@ async function postNewContentForGuild(client, guildId, options) {
         };
     }
 
-    const unpostedContentItems = contentItems.filter((contentItem) => {
-        return !hasPostedContentLink(guildId, contentItem.link);
-    });
+    const unpostedContentItems = [];
+
+    for (const contentItem of contentItems) {
+        const alreadyPosted = await hasPostedContentLink(guildId, contentItem.link);
+
+        if (!alreadyPosted) {
+            unpostedContentItems.push(contentItem);
+        }
+    }
 
     if (unpostedContentItems.length === 0) {
         return {
@@ -112,7 +118,7 @@ async function postNewContentForGuild(client, guildId, options) {
             embeds: [embed]
         });
 
-        addPostedContentLink(guildId, contentItem.link);
+        await addPostedContentLink(guildId, contentItem.link);
     }
 
     return {

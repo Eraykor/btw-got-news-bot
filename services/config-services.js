@@ -1,136 +1,194 @@
-const fs = require("fs");
-const path = require("path");
+const { supabase } = require("./supabase-client");
 
-const configPath = path.join(__dirname, "..", "config.json");
+async function getGuildConfig(guildId) {
+    const { data, error } = await supabase
+        .from("guild_config")
+        .select("*")
+        .eq("guild_id", guildId)
+        .maybeSingle();
 
-function createDefaultConfig() {
-    return {
-        guilds: {}
+    if (error) {
+        throw error;
+    }
+
+    if (!data) {
+        return {
+            guild_id: guildId,
+            game_info_channel_id: null,
+            event_info_channel_id: null,
+            error_log_channel_id: null,
+            game_code_channel_id: null
+        };
+    }
+
+    return data;
+}
+
+async function setGuildChannel(guildId, channelType, channelId) {
+    const payload = {
+        guild_id: guildId,
+        updated_at: new Date().toISOString()
     };
-}
 
-function readConfig() {
-    if (!fs.existsSync(configPath)) {
-        return createDefaultConfig();
+    if (channelType === "game-info") {
+        payload.game_info_channel_id = channelId;
     }
 
-    const rawConfig = fs.readFileSync(configPath, "utf8");
-
-    if (!rawConfig || !rawConfig.trim()) {
-        return createDefaultConfig();
+    if (channelType === "event-info") {
+        payload.event_info_channel_id = channelId;
     }
 
-    return JSON.parse(rawConfig);
-}
-
-function writeConfig(config) {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
-}
-
-function ensureGuildConfig(config, guildId) {
-    if (!config.guilds[guildId]) {
-        config.guilds[guildId] = {};
+    if (channelType === "error-log") {
+        payload.error_log_channel_id = channelId;
     }
 
-    if (!Array.isArray(config.guilds[guildId].postedGameNewsLinks)) {
-        config.guilds[guildId].postedGameNewsLinks = [];
+    if (channelType === "game-code") {
+        payload.game_code_channel_id = channelId;
     }
 
-    if (!Array.isArray(config.guilds[guildId].postedEventNewsLinks)) {
-        config.guilds[guildId].postedEventNewsLinks = [];
+    const { error } = await supabase
+        .from("guild_config")
+        .upsert(payload, { onConflict: "guild_id" });
+
+    if (error) {
+        throw error;
+    }
+}
+
+async function getConfiguredGuildIds() {
+    const { data, error } = await supabase
+        .from("guild_config")
+        .select("guild_id");
+
+    if (error) {
+        throw error;
     }
 
-    if (!Array.isArray(config.guilds[guildId].postedGameCodes)) {
-        config.guilds[guildId].postedGameCodes = [];
+    return (data || []).map((row) => row.guild_id);
+}
+
+async function hasPostedGameNewsLink(guildId, newsLink) {
+    const { data, error } = await supabase
+        .from("posted_game_news")
+        .select("guild_id")
+        .eq("guild_id", guildId)
+        .eq("news_link", newsLink)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
     }
 
-    return config.guilds[guildId];
+    return !!data;
 }
 
-function getGuildConfig(guildId) {
-    const config = readConfig();
-    const guildConfig = ensureGuildConfig(config, guildId);
+async function addPostedGameNewsLink(guildId, newsLink) {
+    const { error } = await supabase
+        .from("posted_game_news")
+        .upsert({
+            guild_id: guildId,
+            news_link: newsLink
+        }, { onConflict: "guild_id,news_link" });
 
-    writeConfig(config);
-
-    return guildConfig;
+    if (error) {
+        throw error;
+    }
 }
 
-function updateGuildConfig(guildId, updater) {
-    const config = readConfig();
-    const guildConfig = ensureGuildConfig(config, guildId);
+async function hasPostedEventNewsLink(guildId, newsLink) {
+    const { data, error } = await supabase
+        .from("posted_event_news")
+        .select("guild_id")
+        .eq("guild_id", guildId)
+        .eq("news_link", newsLink)
+        .maybeSingle();
 
-    updater(guildConfig);
+    if (error) {
+        throw error;
+    }
 
-    writeConfig(config);
+    return !!data;
 }
 
-function getPostedGameNewsLinks(guildId) {
-    const guildConfig = getGuildConfig(guildId);
-    return guildConfig.postedGameNewsLinks;
+async function addPostedEventNewsLink(guildId, newsLink) {
+    const { error } = await supabase
+        .from("posted_event_news")
+        .upsert({
+            guild_id: guildId,
+            news_link: newsLink
+        }, { onConflict: "guild_id,news_link" });
+
+    if (error) {
+        throw error;
+    }
 }
 
-function addPostedGameNewsLink(guildId, newsLink) {
-    updateGuildConfig(guildId, (guildConfig) => {
-        if (!guildConfig.postedGameNewsLinks.includes(newsLink)) {
-            guildConfig.postedGameNewsLinks.push(newsLink);
-        }
-    });
+async function hasPostedGameCode(guildId, code) {
+    const { data, error } = await supabase
+        .from("posted_game_codes")
+        .select("guild_id")
+        .eq("guild_id", guildId)
+        .eq("code", code)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return !!data;
 }
 
-function hasPostedGameNewsLink(guildId, newsLink) {
-    const postedGameNewsLinks = getPostedGameNewsLinks(guildId);
-    return postedGameNewsLinks.includes(newsLink);
+async function addPostedGameCode(guildId, code) {
+    const { error } = await supabase
+        .from("posted_game_codes")
+        .upsert({
+            guild_id: guildId,
+            code
+        }, { onConflict: "guild_id,code" });
+
+    if (error) {
+        throw error;
+    }
 }
 
-function getPostedEventNewsLinks(guildId) {
-    const guildConfig = getGuildConfig(guildId);
-    return guildConfig.postedEventNewsLinks;
+async function getUserTranslationLanguage(userId) {
+    const { data, error } = await supabase
+        .from("user_preferences")
+        .select("translation_language")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    return data?.translation_language || null;
 }
 
-function addPostedEventNewsLink(guildId, newsLink) {
-    updateGuildConfig(guildId, (guildConfig) => {
-        if (!guildConfig.postedEventNewsLinks.includes(newsLink)) {
-            guildConfig.postedEventNewsLinks.push(newsLink);
-        }
-    });
-}
+async function setUserTranslationLanguage(userId, language) {
+    const { error } = await supabase
+        .from("user_preferences")
+        .upsert({
+            user_id: userId,
+            translation_language: language,
+            updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
 
-function hasPostedEventNewsLink(guildId, newsLink) {
-    const postedEventNewsLinks = getPostedEventNewsLinks(guildId);
-    return postedEventNewsLinks.includes(newsLink);
-}
-
-function getPostedGameCodes(guildId) {
-    const guildConfig = getGuildConfig(guildId);
-    return guildConfig.postedGameCodes;
-}
-
-function addPostedGameCode(guildId, code) {
-    updateGuildConfig(guildId, (guildConfig) => {
-        if (!guildConfig.postedGameCodes.includes(code)) {
-            guildConfig.postedGameCodes.push(code);
-        }
-    });
-}
-
-function hasPostedGameCode(guildId, code) {
-    const postedGameCodes = getPostedGameCodes(guildId);
-    return postedGameCodes.includes(code);
+    if (error) {
+        throw error;
+    }
 }
 
 module.exports = {
-    readConfig,
-    writeConfig,
     getGuildConfig,
-    updateGuildConfig,
-    getPostedGameNewsLinks,
-    addPostedGameNewsLink,
+    setGuildChannel,
+    getConfiguredGuildIds,
     hasPostedGameNewsLink,
-    getPostedEventNewsLinks,
-    addPostedEventNewsLink,
+    addPostedGameNewsLink,
     hasPostedEventNewsLink,
-    getPostedGameCodes,
+    addPostedEventNewsLink,
+    hasPostedGameCode,
     addPostedGameCode,
-    hasPostedGameCode
+    getUserTranslationLanguage,
+    setUserTranslationLanguage
 };

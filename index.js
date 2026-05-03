@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const { Client, GatewayIntentBits, Events } = require("discord.js");
-const { readConfig } = require("./services/config-services");
+const { getConfiguredGuildIds } = require("./services/config-services");
 const { postNewGameNewsForGuild } = require("./services/game-news-poster");
 const { postNewEventNewsForGuild } = require("./services/event-news-poster");
 const { postNewGameCodesForGuild } = require("./services/game-code-poster");
@@ -12,6 +12,8 @@ const setChannelCommand = require("./commands/set-channel");
 const postLatestNewsCommand = require("./commands/post-latest-news");
 const postLatestEventsCommand = require("./commands/post-latest-events");
 const postLatestCodesCommand = require("./commands/post-latest-codes");
+const translateMessageCommand = require("./commands/translate-message");
+const setTranslationLanguageCommand = require("./commands/set-translation-language");
 
 const application = express();
 const port = process.env.PORT || 3000;
@@ -33,10 +35,11 @@ commands.set(setChannelCommand.data.name, setChannelCommand);
 commands.set(postLatestNewsCommand.data.name, postLatestNewsCommand);
 commands.set(postLatestEventsCommand.data.name, postLatestEventsCommand);
 commands.set(postLatestCodesCommand.data.name, postLatestCodesCommand);
+commands.set(translateMessageCommand.data.name, translateMessageCommand);
+commands.set(setTranslationLanguageCommand.data.name, setTranslationLanguageCommand);
 
 async function checkAllGuildContent() {
-    const config = readConfig();
-    const guildIds = Object.keys(config.guilds || {});
+    const guildIds = await getConfiguredGuildIds();
 
     if (guildIds.length === 0) {
         console.log("No guilds configured for automatic content check.");
@@ -88,33 +91,23 @@ client.once(Events.ClientReady, () => {
     console.log(`Logged in as ${client.user.tag}`);
     console.log(`Content check interval: ${configuredIntervalMinutes} minute(s).`);
 
-    checkAllGuildContent().catch(async (error) => {
+    checkAllGuildContent().catch((error) => {
         console.error("Initial automatic content check failed:", error);
-
-        const config = readConfig();
-        const guildIds = Object.keys(config.guilds || {});
-
-        for (const guildId of guildIds) {
-            await sendErrorLog(client, guildId, "Initial automatic content check", error);
-        }
     });
 
     setInterval(() => {
-        checkAllGuildContent().catch(async (error) => {
+        checkAllGuildContent().catch((error) => {
             console.error("Scheduled automatic content check failed:", error);
-
-            const config = readConfig();
-            const guildIds = Object.keys(config.guilds || {});
-
-            for (const guildId of guildIds) {
-                await sendErrorLog(client, guildId, "Scheduled automatic content check", error);
-            }
         });
     }, contentCheckIntervalInMilliseconds);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isChatInputCommand()) {
+    const isSupportedInteraction =
+        interaction.isChatInputCommand()
+        || interaction.isMessageContextMenuCommand();
+
+    if (!isSupportedInteraction) {
         return;
     }
 

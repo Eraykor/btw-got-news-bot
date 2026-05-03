@@ -1,23 +1,22 @@
 const { fetchLatestNews } = require("./news-fetcher");
+const { postNewContentForGuild } = require("./content-poster");
 const {
     getGuildConfig,
     hasPostedGameNewsLink,
     addPostedGameNewsLink
 } = require("./config-services");
-const { postNewContentForGuild } = require("./content-poster");
 
 async function postNewGameNewsForGuild(client, guildId) {
     return postNewContentForGuild(client, guildId, {
         getGuildConfig,
-        channelIdKey: "gameInfoChannelId",
+        channelIdKey: "game_info_channel_id",
         fetchLatestContent: fetchLatestNews,
         hasPostedContentLink: hasPostedGameNewsLink,
         addPostedContentLink: addPostedGameNewsLink,
         missingChannelReason: "No game-info channel configured",
         missingConfiguredChannelReason: "Configured game-info channel not found",
-        emptyFetchReason: "No game news fetched",
-        noNewContentReason: "No new game news",
-        contentType: "game"
+        emptyFetchReason: "No game news found",
+        noNewContentReason: "No new game news"
     });
 }
 
