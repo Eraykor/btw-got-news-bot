@@ -122,25 +122,33 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (error) {
         console.error("Error while executing command:", error);
 
-        await sendErrorLog(
-            interaction.client,
-            interaction.guildId,
-            `Command /${interaction.commandName}`,
-            error
-        );
+        try {
+            await sendErrorLog(
+                interaction.client,
+                interaction.guildId,
+                `Command /${interaction.commandName}`,
+                error
+            );
+        } catch (sendError) {
+            console.error("Failed to send command error log:", sendError);
+        }
 
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({
+        try {
+            if (interaction.deferred || interaction.replied) {
+                await interaction.followUp({
+                    content: "❌ An error occurred while executing this command.",
+                    flags: 64
+                });
+                return;
+            }
+
+            await interaction.reply({
                 content: "❌ An error occurred while executing this command.",
                 flags: 64
             });
-            return;
+        } catch (replyError) {
+            console.error("Failed to answer interaction after command error:", replyError);
         }
-
-        await interaction.reply({
-            content: "❌ An error occurred while executing this command.",
-            flags: 64
-        });
     }
 });
 
